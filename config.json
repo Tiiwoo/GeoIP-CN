@@ -1,0 +1,42 @@
+{
+  "input": [
+    {
+      "type": "maxmindMMDB",
+      "action": "add",
+      "args": {
+        "uri": "https://github.com/misakaio/chnroutes2/raw/refs/heads/master/chnroutes.mmdb"
+      }
+    },
+    {
+      "type": "ipinfoCountryMMDB",
+      "action": "add",
+      "args": {
+        "uri": "./data/country.mmdb",
+        "wantedList": ["cn"]
+      }
+    },
+    {
+      "type": "text",
+      "action": "add",
+      "args": {
+        "name": "cn",
+        "uri": "https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china6.txt",
+        "onlyIPType": "ipv6"
+      }
+    },
+    {
+      "type": "private",
+      "action": "add"
+    }
+  ],
+  "output": [
+    {
+      "type": "maxmindMMDB",
+      "action": "output",
+      "args": {
+        "outputName": "Country.mmdb",
+        "wantedList": ["cn", "private"]
+      }
+    }
+  ]
+}
