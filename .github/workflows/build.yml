@@ -44,7 +44,7 @@ jobs:
 
       - name: Verify mmdb files
         run: |
-          cd ./output || exit 1
+          cd ./output/maxmind || exit 1
           go install -v github.com/maxmind/mmdbverify@latest
           for name in $(ls *.mmdb); do
             $(go env GOPATH)/bin/mmdbverify -file ${name}
@@ -67,6 +67,6 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file_glob: true
-          file: ./output/*
+          file: ./output/maxmind/*
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
