@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p data
           mkdir -p output
-          curl -L "https://ipinfo.io/data/free/country.mmdb?token=${{ secrets.IPINFO_TOKEN }}" -o ./data/country.mmdb
+          curl -L "https://ipinfo.io/data/ipinfo_lite.mmdb?token=${{ secrets.IPINFO_TOKEN }}" -o ./data/country.mmdb
 
       - name: Build geoip files
         run: |
