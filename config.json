@@ -11,7 +11,7 @@
       "type": "ipinfoCountryMMDB",
       "action": "add",
       "args": {
-        "uri": "./data/country.mmdb",
+        "uri": "./data/ipinfo_lite.mmdb",
         "wantedList": ["cn"]
       }
     },

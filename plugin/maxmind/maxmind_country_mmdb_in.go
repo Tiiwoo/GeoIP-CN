@@ -128,13 +128,23 @@ func (g *GeoLite2CountryMMDBIn) generateEntries(content []byte, entries map[stri
 
 		case TypeIPInfoCountryMMDBIn:
 			record := struct {
-				Country string `maxminddb:"country"`
+				Country       string `maxminddb:"country"`
+				CountryCode   string `maxminddb:"country_code"`
+				Continent     string `maxminddb:"continent"`
+				ContinentCode string `maxminddb:"continent_code"`
+				ASN           string `maxminddb:"asn"`
+				ASName        string `maxminddb:"as_name"`
+				ASDomain      string `maxminddb:"as_domain"`
 			}{}
 			subnet, err = networks.Network(&record)
 			if err != nil {
 				return err
 			}
-			name = strings.ToUpper(strings.TrimSpace(record.Country))
+			if strings.TrimSpace(record.CountryCode) != "" {
+				name = strings.ToUpper(strings.TrimSpace(record.CountryCode))
+			} else {
+				name = strings.ToUpper(strings.TrimSpace(record.Country))
+			}
 
 		default:
 			return lib.ErrNotSupportedFormat
