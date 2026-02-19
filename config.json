@@ -1,42 +1,27 @@
 {
-  "input": [
+  "sources": [
     {
-      "type": "maxmindMMDB",
-      "action": "add",
-      "args": {
-        "uri": "https://github.com/misakaio/chnroutes2/raw/refs/heads/master/chnroutes.mmdb"
-      }
+      "type": "maxmind_mmdb",
+      "url": "https://github.com/misakaio/chnroutes2/raw/refs/heads/master/chnroutes.mmdb"
     },
     {
-      "type": "ipinfoCountryMMDB",
-      "action": "add",
-      "args": {
-        "uri": "./data/ipinfo_lite.mmdb",
-        "wantedList": ["cn"]
-      }
+      "type": "ipinfo_mmdb",
+      "url": "./data/ipinfo_lite.mmdb",
+      "wantedList": ["cn"]
     },
     {
       "type": "text",
-      "action": "add",
-      "args": {
-        "name": "cn",
-        "uri": "https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china6.txt",
-        "onlyIPType": "ipv6"
-      }
+      "name": "cn",
+      "url": "https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china6.txt",
+      "onlyIPType": "ipv6"
     },
     {
-      "type": "private",
-      "action": "add"
+      "type": "private"
     }
   ],
-  "output": [
-    {
-      "type": "maxmindMMDB",
-      "action": "output",
-      "args": {
-        "outputName": "Country.mmdb",
-        "wantedList": ["cn", "private"]
-      }
-    }
-  ]
+  "output": {
+    "file": "Country.mmdb",
+    "dir": "./output",
+    "wantedList": ["cn", "private"]
+  }
 }

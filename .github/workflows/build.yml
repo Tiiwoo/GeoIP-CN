@@ -39,12 +39,12 @@ jobs:
 
       - name: Build geoip files
         run: |
-          go build ./
-          ./geoip convert -c ./config.json
+          go build -o geoip .
+          ./geoip -c ./config.json
 
       - name: Verify mmdb files
         run: |
-          cd ./output/maxmind || exit 1
+          cd ./output || exit 1
           go install -v github.com/maxmind/mmdbverify@latest
           for name in $(ls *.mmdb); do
             $(go env GOPATH)/bin/mmdbverify -file ${name}
@@ -58,7 +58,7 @@ jobs:
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b release
           git add -A
-          git commit -m "${{ env.RELEASE_NAME }}"
+          git commit -m "$RELEASE_NAME"
           git remote add geoip "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git push -f -u geoip release
 
@@ -67,6 +67,6 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file_glob: true
-          file: ./output/maxmind/*
+          file: ./output/*
           release_name: ${{ env.RELEASE_NAME }}
           tag: ${{ env.TAG_NAME }}
