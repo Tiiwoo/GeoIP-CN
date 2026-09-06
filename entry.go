@@ -19,39 +19,60 @@ func NewEntry(name string) *Entry {
 }
 
 func (e *Entry) AddPrefix(cidr string) error {
+	p, err := parsePrefix(cidr)
+	if err != nil || !p.IsValid() {
+		return err
+	}
+	return e.addPrefix(p)
+}
+
+// parsePrefix strips comments and returns a zero prefix for a blank line.
+func parsePrefix(cidr string) (netip.Prefix, error) {
 	cidr, _, _ = strings.Cut(cidr, "#")
 	cidr, _, _ = strings.Cut(cidr, "//")
 	cidr = strings.TrimSpace(cidr)
 	if cidr == "" {
-		return nil
+		return netip.Prefix{}, nil
 	}
 
 	if strings.Contains(cidr, "/") {
 		prefix, err := netip.ParsePrefix(cidr)
 		if err != nil {
-			return fmt.Errorf("invalid CIDR %q: %w", cidr, err)
+			return netip.Prefix{}, fmt.Errorf("invalid CIDR %q: %w", cidr, err)
 		}
-		e.addPrefix(prefix)
-		return nil
+		return normalizePrefix(prefix)
 	}
 
 	addr, err := netip.ParseAddr(cidr)
 	if err != nil {
-		return fmt.Errorf("invalid IP %q: %w", cidr, err)
+		return netip.Prefix{}, fmt.Errorf("invalid IP %q: %w", cidr, err)
 	}
-	addr = addr.Unmap()
-	bits := 32
-	if addr.Is6() {
-		bits = 128
+	if addr.Zone() != "" {
+		return netip.Prefix{}, fmt.Errorf("scoped IP %q is not supported", cidr)
 	}
-	e.addPrefix(netip.PrefixFrom(addr, bits))
-	return nil
+	return normalizePrefix(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
-func (e *Entry) addPrefix(p netip.Prefix) {
-	addr := p.Addr().Unmap()
-	p = netip.PrefixFrom(addr, p.Bits())
-	if addr.Is4() {
+func normalizePrefix(p netip.Prefix) (netip.Prefix, error) {
+	if !p.IsValid() {
+		return netip.Prefix{}, fmt.Errorf("invalid prefix")
+	}
+	if p.Addr().Is4In6() {
+		// Only prefixes contained in ::ffff:0:0/96 map to IPv4 ranges.
+		if p.Bits() < 96 {
+			return netip.Prefix{}, fmt.Errorf("mapped IPv4 prefix %s is broader than /96", p)
+		}
+		p = netip.PrefixFrom(p.Addr().Unmap(), p.Bits()-96)
+	}
+	return p.Masked(), nil
+}
+
+func (e *Entry) addPrefix(p netip.Prefix) error {
+	p, err := normalizePrefix(p)
+	if err != nil {
+		return err
+	}
+	if p.Addr().Is4() {
 		if e.ipv4Builder == nil {
 			e.ipv4Builder = new(netipx.IPSetBuilder)
 		}
@@ -62,6 +83,7 @@ func (e *Entry) addPrefix(p netip.Prefix) {
 		}
 		e.ipv6Builder.AddPrefix(p)
 	}
+	return nil
 }
 
 func (e *Entry) Prefixes() ([]netip.Prefix, error) {
@@ -83,27 +105,32 @@ func (e *Entry) Prefixes() ([]netip.Prefix, error) {
 	return out, nil
 }
 
-func (e *Entry) Merge(other *Entry) {
+func (e *Entry) Merge(other *Entry) error {
+	var v4, v6 *netipx.IPSet
+	var err error
 	if other.ipv4Builder != nil {
-		if e.ipv4Builder == nil {
-			e.ipv4Builder = new(netipx.IPSetBuilder)
-		}
-		s, _ := other.ipv4Builder.IPSet()
-		if s != nil {
-			for _, p := range s.Prefixes() {
-				e.ipv4Builder.AddPrefix(p)
-			}
+		v4, err = other.ipv4Builder.IPSet()
+		if err != nil {
+			return fmt.Errorf("merge %s IPv4: %w", other.name, err)
 		}
 	}
 	if other.ipv6Builder != nil {
+		v6, err = other.ipv6Builder.IPSet()
+		if err != nil {
+			return fmt.Errorf("merge %s IPv6: %w", other.name, err)
+		}
+	}
+	if v4 != nil {
+		if e.ipv4Builder == nil {
+			e.ipv4Builder = new(netipx.IPSetBuilder)
+		}
+		e.ipv4Builder.AddSet(v4)
+	}
+	if v6 != nil {
 		if e.ipv6Builder == nil {
 			e.ipv6Builder = new(netipx.IPSetBuilder)
 		}
-		s, _ := other.ipv6Builder.IPSet()
-		if s != nil {
-			for _, p := range s.Prefixes() {
-				e.ipv6Builder.AddPrefix(p)
-			}
-		}
+		e.ipv6Builder.AddSet(v6)
 	}
+	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"strings"
 
 	maxminddb "github.com/oschwald/maxminddb-golang/v2"
@@ -54,9 +55,11 @@ func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, err
 			entry = NewEntry(name)
 			entries[name] = entry
 		}
-		entry.addPrefix(result.Prefix())
+		if err := entry.addPrefix(result.Prefix()); err != nil {
+			return nil, err
+		}
 	}
-	return entries, nil
+	return entries, validateParsedEntries(entries, want)
 }
 
 func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
@@ -92,35 +95,64 @@ func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, erro
 			entry = NewEntry(name)
 			entries[name] = entry
 		}
-		entry.addPrefix(result.Prefix())
+		if err := entry.addPrefix(result.Prefix()); err != nil {
+			return nil, err
+		}
 	}
-	return entries, nil
+	return entries, validateParsedEntries(entries, want)
 }
 
 func parseText(data []byte, name string, onlyIPType string) (*Entry, error) {
+	if onlyIPType != "" && onlyIPType != "ipv4" && onlyIPType != "ipv6" {
+		return nil, fmt.Errorf("invalid onlyIPType %q", onlyIPType)
+	}
 	entry := NewEntry(name)
+	if entry.name == "" {
+		return nil, fmt.Errorf("text source name is required")
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(data))
+	lineNumber, count := 0, 0
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		lineNumber++
+		prefix, err := parsePrefix(scanner.Text())
+		if err != nil {
+			return nil, fmt.Errorf("line %d: %w", lineNumber, err)
+		}
+		if !prefix.IsValid() {
 			continue
 		}
 
-		if onlyIPType == "ipv4" && strings.Contains(line, ":") {
+		if onlyIPType == "ipv4" && !prefix.Addr().Is4() {
 			continue
 		}
-		if onlyIPType == "ipv6" && !strings.Contains(line, ":") {
+		if onlyIPType == "ipv6" && !prefix.Addr().Is6() {
 			continue
 		}
 
-		if err := entry.AddPrefix(line); err != nil {
+		if err := entry.addPrefix(prefix); err != nil {
 			return nil, err
 		}
+		count++
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+	if count == 0 {
+		return nil, fmt.Errorf("text source %s contains no matching IP ranges", entry.name)
+	}
 	return entry, nil
+}
+
+func validateParsedEntries(entries map[string]*Entry, want map[string]bool) error {
+	if len(entries) == 0 {
+		return fmt.Errorf("MMDB source contains no matching IP ranges")
+	}
+	for name := range want {
+		if _, ok := entries[name]; !ok {
+			return fmt.Errorf("MMDB source is missing requested entry %s", name)
+		}
+	}
+	return nil
 }
 
 var privateCIDRs = []string{
@@ -157,23 +189,22 @@ func privateEntry() (*Entry, error) {
 	return entry, nil
 }
 
-func mergeEntries(container map[string]*Entry, entries map[string]*Entry) {
-	for name, entry := range entries {
-		if existing, ok := container[name]; ok {
-			existing.Merge(entry)
-		} else {
-			container[name] = entry
+func mergeEntries(container map[string]*Entry, entries map[string]*Entry) error {
+	for _, entry := range entries {
+		if err := mergeEntry(container, entry); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
-func mergeEntry(container map[string]*Entry, entry *Entry) {
+func mergeEntry(container map[string]*Entry, entry *Entry) error {
 	name := entry.name
 	if existing, ok := container[name]; ok {
-		existing.Merge(entry)
-	} else {
-		container[name] = entry
+		return existing.Merge(entry)
 	}
+	container[name] = entry
+	return nil
 }
 
 func wantMap(list []string) map[string]bool {

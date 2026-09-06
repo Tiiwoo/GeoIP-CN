@@ -2,7 +2,8 @@
   "sources": [
     {
       "type": "maxmind_mmdb",
-      "url": "https://github.com/misakaio/chnroutes2/raw/refs/heads/master/chnroutes.mmdb"
+      "url": "https://github.com/misakaio/chnroutes2/raw/refs/heads/master/chnroutes.mmdb",
+      "wantedList": ["cn"]
     },
     {
       "type": "ipinfo_mmdb",

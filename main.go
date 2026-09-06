@@ -40,7 +40,9 @@ func run(configPath string) error {
 			if err != nil {
 				return fmt.Errorf("parse maxmind_mmdb %s: %w", src.URL, err)
 			}
-			mergeEntries(container, entries)
+			if err := mergeEntries(container, entries); err != nil {
+				return fmt.Errorf("merge %s: %w", src.URL, err)
+			}
 			log.Printf("parsed maxmind_mmdb: %d entries", len(entries))
 
 		case "ipinfo_mmdb":
@@ -48,7 +50,9 @@ func run(configPath string) error {
 			if err != nil {
 				return fmt.Errorf("parse ipinfo_mmdb %s: %w", src.URL, err)
 			}
-			mergeEntries(container, entries)
+			if err := mergeEntries(container, entries); err != nil {
+				return fmt.Errorf("merge %s: %w", src.URL, err)
+			}
 			log.Printf("parsed ipinfo_mmdb: %d entries", len(entries))
 
 		case "text":
@@ -56,7 +60,9 @@ func run(configPath string) error {
 			if err != nil {
 				return fmt.Errorf("parse text %s: %w", src.URL, err)
 			}
-			mergeEntry(container, entry)
+			if err := mergeEntry(container, entry); err != nil {
+				return fmt.Errorf("merge %s: %w", src.URL, err)
+			}
 			log.Printf("parsed text: %s", strings.ToUpper(src.Name))
 
 		case "private":
@@ -64,7 +70,9 @@ func run(configPath string) error {
 			if err != nil {
 				return fmt.Errorf("generate private entry: %w", err)
 			}
-			mergeEntry(container, entry)
+			if err := mergeEntry(container, entry); err != nil {
+				return fmt.Errorf("merge private ranges: %w", err)
+			}
 			log.Printf("added private ranges")
 
 		default:
