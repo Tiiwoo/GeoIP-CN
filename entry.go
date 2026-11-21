@@ -9,9 +9,9 @@ import (
 )
 
 type Entry struct {
-	name        string
-	ipv4Builder *netipx.IPSetBuilder
-	ipv6Builder *netipx.IPSetBuilder
+	name string
+	ipv4 netipx.IPSetBuilder
+	ipv6 netipx.IPSetBuilder
 }
 
 func NewEntry(name string) *Entry {
@@ -73,64 +73,39 @@ func (e *Entry) addPrefix(p netip.Prefix) error {
 		return err
 	}
 	if p.Addr().Is4() {
-		if e.ipv4Builder == nil {
-			e.ipv4Builder = new(netipx.IPSetBuilder)
-		}
-		e.ipv4Builder.AddPrefix(p)
+		e.ipv4.AddPrefix(p)
 	} else {
-		if e.ipv6Builder == nil {
-			e.ipv6Builder = new(netipx.IPSetBuilder)
-		}
-		e.ipv6Builder.AddPrefix(p)
+		e.ipv6.AddPrefix(p)
 	}
 	return nil
 }
 
 func (e *Entry) Prefixes() ([]netip.Prefix, error) {
-	var out []netip.Prefix
-	if e.ipv4Builder != nil {
-		s, err := e.ipv4Builder.IPSet()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, s.Prefixes()...)
+	v4, err := e.ipv4.IPSet()
+	if err != nil {
+		return nil, err
 	}
-	if e.ipv6Builder != nil {
-		s, err := e.ipv6Builder.IPSet()
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, s.Prefixes()...)
+	v6, err := e.ipv6.IPSet()
+	if err != nil {
+		return nil, err
 	}
+	p4, p6 := v4.Prefixes(), v6.Prefixes()
+	out := make([]netip.Prefix, 0, len(p4)+len(p6))
+	out = append(out, p4...)
+	out = append(out, p6...)
 	return out, nil
 }
 
 func (e *Entry) Merge(other *Entry) error {
-	var v4, v6 *netipx.IPSet
-	var err error
-	if other.ipv4Builder != nil {
-		v4, err = other.ipv4Builder.IPSet()
-		if err != nil {
-			return fmt.Errorf("merge %s IPv4: %w", other.name, err)
-		}
+	v4, err := other.ipv4.IPSet()
+	if err != nil {
+		return fmt.Errorf("merge %s IPv4: %w", other.name, err)
 	}
-	if other.ipv6Builder != nil {
-		v6, err = other.ipv6Builder.IPSet()
-		if err != nil {
-			return fmt.Errorf("merge %s IPv6: %w", other.name, err)
-		}
+	v6, err := other.ipv6.IPSet()
+	if err != nil {
+		return fmt.Errorf("merge %s IPv6: %w", other.name, err)
 	}
-	if v4 != nil {
-		if e.ipv4Builder == nil {
-			e.ipv4Builder = new(netipx.IPSetBuilder)
-		}
-		e.ipv4Builder.AddSet(v4)
-	}
-	if v6 != nil {
-		if e.ipv6Builder == nil {
-			e.ipv6Builder = new(netipx.IPSetBuilder)
-		}
-		e.ipv6Builder.AddSet(v6)
-	}
+	e.ipv4.AddSet(v4)
+	e.ipv6.AddSet(v6)
 	return nil
 }

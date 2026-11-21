@@ -137,7 +137,7 @@ func TestFetchAllAndLocalSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(data) != 2 || string(data[0]) != "local" || string(data[2]) != "remote" {
+	if len(data) != 3 || string(data[0]) != "local" || data[1] != nil || string(data[2]) != "remote" {
 		t.Fatalf("source ordering lost: %v", data)
 	}
 	if err := os.Truncate(path, maxSourceBytes+1); err != nil {

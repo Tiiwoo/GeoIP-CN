@@ -6,27 +6,36 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 func main() {
 	configPath := flag.String("c", "config.json", "config file path")
 	flag.Parse()
 
-	if err := run(*configPath); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := runContext(ctx, *configPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func run(configPath string) error {
+	return runContext(context.Background(), configPath)
+}
+
+func runContext(ctx context.Context, configPath string) error {
 	cfg, err := loadConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
 	log.Printf("fetching %d sources...", len(cfg.Sources))
-	dataMap, err := fetchAll(context.Background(), cfg.Sources)
+	sourcesData, err := fetchAll(ctx, cfg.Sources)
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
@@ -36,7 +45,7 @@ func run(configPath string) error {
 	for i, src := range cfg.Sources {
 		switch src.Type {
 		case "maxmind_mmdb":
-			entries, err := parseMaxmindMMDB(dataMap[i], wantMap(src.WantedList))
+			entries, err := parseMaxmindMMDB(sourcesData[i], wantMap(src.WantedList))
 			if err != nil {
 				return fmt.Errorf("parse maxmind_mmdb %s: %w", src.URL, err)
 			}
@@ -46,7 +55,7 @@ func run(configPath string) error {
 			log.Printf("parsed maxmind_mmdb: %d entries", len(entries))
 
 		case "ipinfo_mmdb":
-			entries, err := parseIPInfoMMDB(dataMap[i], wantMap(src.WantedList))
+			entries, err := parseIPInfoMMDB(sourcesData[i], wantMap(src.WantedList))
 			if err != nil {
 				return fmt.Errorf("parse ipinfo_mmdb %s: %w", src.URL, err)
 			}
@@ -56,7 +65,7 @@ func run(configPath string) error {
 			log.Printf("parsed ipinfo_mmdb: %d entries", len(entries))
 
 		case "text":
-			entry, err := parseText(dataMap[i], src.Name, src.OnlyIPType)
+			entry, err := parseText(sourcesData[i], src.Name, src.OnlyIPType)
 			if err != nil {
 				return fmt.Errorf("parse text %s: %w", src.URL, err)
 			}

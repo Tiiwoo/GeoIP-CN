@@ -4,8 +4,6 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
-
-	"go4.org/netipx"
 )
 
 func assertPrefixes(t *testing.T, entry *Entry, want ...string) {
@@ -91,12 +89,10 @@ func TestEntryMergePropagatesErrors(t *testing.T) {
 			if err := other.AddPrefix("1.2.3.0/24"); err != nil {
 				t.Fatal(err)
 			}
-			bad := new(netipx.IPSetBuilder)
-			bad.AddPrefix(netip.Prefix{})
 			if family == "ipv4" {
-				other.ipv4Builder = bad
+				other.ipv4.AddPrefix(netip.Prefix{})
 			} else {
-				other.ipv6Builder = bad
+				other.ipv6.AddPrefix(netip.Prefix{})
 			}
 			if err := base.Merge(other); err == nil {
 				t.Fatal("merge swallowed the builder error")

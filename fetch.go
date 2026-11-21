@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -25,9 +24,8 @@ var (
 	errSourceTooLarge = errors.New("source size limit exceeded")
 )
 
-func fetchAll(ctx context.Context, sources []Source) (map[int][]byte, error) {
-	var mu sync.Mutex
-	results := make(map[int][]byte)
+func fetchAll(ctx context.Context, sources []Source) ([][]byte, error) {
+	results := make([][]byte, len(sources))
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(4)
@@ -40,9 +38,7 @@ func fetchAll(ctx context.Context, sources []Source) (map[int][]byte, error) {
 			if err != nil {
 				return fmt.Errorf("fetch %s: %w", src.URL, err)
 			}
-			mu.Lock()
 			results[i] = data
-			mu.Unlock()
 			return nil
 		})
 	}
@@ -75,7 +71,7 @@ func fetchOne(ctx context.Context, url string) ([]byte, error) {
 // Retry transient HTTP and transport failures, including interrupted bodies.
 func fetchHTTP(ctx context.Context, client *http.Client, url string, maxBytes int64) ([]byte, error) {
 	var lastErr error
-	for attempt := 0; attempt < fetchAttempts; attempt++ {
+	for attempt := range fetchAttempts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

@@ -80,7 +80,7 @@ jobs:
         env:
           GEOIP_MMDB_FILE: ./output/Country.mmdb
         run: |
-          go install github.com/maxmind/mmdbverify@v1.0.0
+          go install github.com/maxmind/mmdbverify@v1.2.0
           "$(go env GOPATH)/bin/mmdbverify" -file "$GEOIP_MMDB_FILE"
           go test -v -count=1 -run '^TestReleaseDatabase$' .
 

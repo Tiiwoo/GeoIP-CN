@@ -13,7 +13,7 @@ go test -race ./...           # offline regression tests
 
 Verify the default release output with:
 ```bash
-go install github.com/maxmind/mmdbverify@v1.0.0
+go install github.com/maxmind/mmdbverify@v1.2.0
 "$(go env GOPATH)/bin/mmdbverify" -file ./output/Country.mmdb
 GEOIP_MMDB_FILE=./output/Country.mmdb go test -v -count=1 -run '^TestReleaseDatabase$' .
 ```

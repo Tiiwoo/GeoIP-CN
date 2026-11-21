@@ -48,11 +48,15 @@ func TestReleaseDatabase(t *testing.T) {
 			t.Errorf("%s is missing IPv4 or IPv6 coverage: %v", name, count)
 		}
 	}
+	if counts["CN"][0] < 1000 || counts["CN"][1] < 500 {
+		t.Errorf("CN coverage unexpectedly low [IPv4 IPv6]: %v", counts["CN"])
+	}
 	t.Logf("prefix counts [IPv4 IPv6]: %v", counts)
 	for _, tc := range []struct{ ip, want string }{
 		{"223.5.5.5", "CN"}, {"119.29.29.29", "CN"}, {"2400:3200::1", "CN"},
 		{"10.0.0.1", "PRIVATE"}, {"127.0.0.1", "PRIVATE"}, {"::1", "PRIVATE"}, {"fc00::1", "PRIVATE"},
 		{"8.8.8.8", ""}, {"1.1.1.1", ""}, {"2001:4860:4860::8888", ""},
+		{"47.52.0.1", ""}, {"43.132.0.1", ""},
 	} {
 		got, found := lookupCountry(t, db, tc.ip)
 		if got != tc.want || found != (tc.want != "") {

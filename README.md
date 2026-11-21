@@ -6,7 +6,7 @@ GeoIP-CN merges Chinese IPv4 and IPv6 ranges from multiple sources into a MaxMin
 
 ## Build and run
 
-Requires Go 1.26 or later. Prepare the IPInfo Lite database with your IPInfo token, then run the tool from the repository directory:
+Requires Go 1.27 or later. Prepare the IPInfo Lite database with your IPInfo token, then run the tool from the repository directory:
 
 ```bash
 export IPINFO_TOKEN="your-token"
@@ -58,7 +58,7 @@ go test -race ./...
 After generating the default database, run both structural and release-content checks:
 
 ```bash
-go install github.com/maxmind/mmdbverify@v1.0.0
+go install github.com/maxmind/mmdbverify@v1.2.0
 "$(go env GOPATH)/bin/mmdbverify" -file ./output/Country.mmdb
 GEOIP_MMDB_FILE=./output/Country.mmdb go test -v -count=1 -run '^TestReleaseDatabase$' .
 ```

@@ -10,14 +10,7 @@ import (
 )
 
 func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
-	db, err := maxminddb.OpenBytes(data)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	entries := make(map[string]*Entry)
-	for result := range db.Networks() {
+	return parseMMDB(data, want, func(result maxminddb.Result) (string, error) {
 		var record struct {
 			Country struct {
 				IsoCode string `maxminddb:"iso_code"`
@@ -30,23 +23,44 @@ func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, err
 			} `maxminddb:"represented_country"`
 		}
 		if err := result.Decode(&record); err != nil {
+			return "", err
+		}
+		return firstNonBlank(
+			record.Country.IsoCode,
+			record.RegisteredCountry.IsoCode,
+			record.RepresentedCountry.IsoCode,
+		), nil
+	})
+}
+
+func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
+	return parseMMDB(data, want, func(result maxminddb.Result) (string, error) {
+		var record struct {
+			Country     string `maxminddb:"country"`
+			CountryCode string `maxminddb:"country_code"`
+		}
+		if err := result.Decode(&record); err != nil {
+			return "", err
+		}
+		return firstNonBlank(record.CountryCode, record.Country), nil
+	})
+}
+
+func parseMMDB(data []byte, want map[string]bool, extract func(maxminddb.Result) (string, error)) (map[string]*Entry, error) {
+	db, err := maxminddb.OpenBytes(data)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	entries := make(map[string]*Entry)
+	for result := range db.Networks() {
+		name, err := extract(result)
+		if err != nil {
 			return nil, err
 		}
-
-		var name string
-		switch {
-		case strings.TrimSpace(record.Country.IsoCode) != "":
-			name = strings.ToUpper(strings.TrimSpace(record.Country.IsoCode))
-		case strings.TrimSpace(record.RegisteredCountry.IsoCode) != "":
-			name = strings.ToUpper(strings.TrimSpace(record.RegisteredCountry.IsoCode))
-		case strings.TrimSpace(record.RepresentedCountry.IsoCode) != "":
-			name = strings.ToUpper(strings.TrimSpace(record.RepresentedCountry.IsoCode))
-		}
-
-		if name == "" {
-			continue
-		}
-		if len(want) > 0 && !want[name] {
+		name = strings.ToUpper(name)
+		if name == "" || (len(want) > 0 && !want[name]) {
 			continue
 		}
 
@@ -62,44 +76,13 @@ func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, err
 	return entries, validateParsedEntries(entries, want)
 }
 
-func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
-	db, err := maxminddb.OpenBytes(data)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	entries := make(map[string]*Entry)
-	for result := range db.Networks() {
-		var record struct {
-			Country     string `maxminddb:"country"`
-			CountryCode string `maxminddb:"country_code"`
-		}
-		if err := result.Decode(&record); err != nil {
-			return nil, err
-		}
-
-		name := strings.ToUpper(strings.TrimSpace(record.CountryCode))
-		if name == "" {
-			name = strings.ToUpper(strings.TrimSpace(record.Country))
-		}
-		if name == "" {
-			continue
-		}
-		if len(want) > 0 && !want[name] {
-			continue
-		}
-
-		entry, ok := entries[name]
-		if !ok {
-			entry = NewEntry(name)
-			entries[name] = entry
-		}
-		if err := entry.addPrefix(result.Prefix()); err != nil {
-			return nil, err
+func firstNonBlank(values ...string) string {
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v != "" {
+			return v
 		}
 	}
-	return entries, validateParsedEntries(entries, want)
+	return ""
 }
 
 func parseText(data []byte, name string, onlyIPType string) (*Entry, error) {
