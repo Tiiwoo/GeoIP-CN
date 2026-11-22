@@ -49,40 +49,40 @@ func runContext(ctx context.Context, configPath string) error {
 			if err != nil {
 				return fmt.Errorf("parse maxmind_mmdb %s: %w", src.URL, err)
 			}
-			if err := mergeEntries(container, entries); err != nil {
-				return fmt.Errorf("merge %s: %w", src.URL, err)
+			if err := applyEntries(container, entries, src.Action); err != nil {
+				return fmt.Errorf("apply %s: %w", src.URL, err)
 			}
-			log.Printf("parsed maxmind_mmdb: %d entries", len(entries))
+			log.Printf("parsed maxmind_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
 
 		case "ipinfo_mmdb":
 			entries, err := parseIPInfoMMDB(sourcesData[i], wantMap(src.WantedList))
 			if err != nil {
 				return fmt.Errorf("parse ipinfo_mmdb %s: %w", src.URL, err)
 			}
-			if err := mergeEntries(container, entries); err != nil {
-				return fmt.Errorf("merge %s: %w", src.URL, err)
+			if err := applyEntries(container, entries, src.Action); err != nil {
+				return fmt.Errorf("apply %s: %w", src.URL, err)
 			}
-			log.Printf("parsed ipinfo_mmdb: %d entries", len(entries))
+			log.Printf("parsed ipinfo_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
 
 		case "text":
 			entry, err := parseText(sourcesData[i], src.Name, src.OnlyIPType)
 			if err != nil {
 				return fmt.Errorf("parse text %s: %w", src.URL, err)
 			}
-			if err := mergeEntry(container, entry); err != nil {
-				return fmt.Errorf("merge %s: %w", src.URL, err)
+			if err := applyEntry(container, entry, src.Action); err != nil {
+				return fmt.Errorf("apply %s: %w", src.URL, err)
 			}
-			log.Printf("parsed text: %s", strings.ToUpper(src.Name))
+			log.Printf("parsed text: %s%s", strings.ToUpper(src.Name), actionSuffix(src.Action))
 
 		case "private":
 			entry, err := privateEntry()
 			if err != nil {
 				return fmt.Errorf("generate private entry: %w", err)
 			}
-			if err := mergeEntry(container, entry); err != nil {
-				return fmt.Errorf("merge private ranges: %w", err)
+			if err := applyEntry(container, entry, src.Action); err != nil {
+				return fmt.Errorf("apply private ranges: %w", err)
 			}
-			log.Printf("added private ranges")
+			log.Printf("added private ranges%s", actionSuffix(src.Action))
 
 		default:
 			return fmt.Errorf("unknown source type: %s", src.Type)
@@ -95,4 +95,25 @@ func runContext(ctx context.Context, configPath string) error {
 	}
 
 	return nil
+}
+
+func applyEntries(container, entries map[string]*Entry, action string) error {
+	if action == "remove" {
+		return removeEntries(container, entries)
+	}
+	return mergeEntries(container, entries)
+}
+
+func applyEntry(container map[string]*Entry, entry *Entry, action string) error {
+	if action == "remove" {
+		return removeEntry(container, entry)
+	}
+	return mergeEntry(container, entry)
+}
+
+func actionSuffix(action string) string {
+	if action == "remove" {
+		return " (remove)"
+	}
+	return ""
 }

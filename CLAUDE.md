@@ -22,12 +22,12 @@ GEOIP_MMDB_FILE=./output/Country.mmdb go test -v -count=1 -run '^TestReleaseData
 
 Single-purpose CLI tool that merges Chinese IP ranges from multiple sources into one MMDB file. No plugin system, no interfaces, no registry — just straight-line data pipeline.
 
-**Pipeline:** `main.go` orchestrates: load config → concurrent fetch → parse each source → merge entries → write MMDB.
+**Pipeline:** `main.go` orchestrates: load config → concurrent fetch → parse each source → apply (`merge` or `remove`) entries → write MMDB.
 
-- **config.go** — Strict JSON decoding and validation (`Config`, `Source`, `Output` structs)
+- **config.go** — Strict JSON decoding and validation (`Config`, `Source`, `Output` structs; optional `action` is `add` or `remove`)
 - **fetch.go** — HTTP/local file fetching via `errgroup`; up to four concurrent sources, size limits, request timeouts, and bounded retries
-- **parse.go** — Four parsers: `parseMaxmindMMDB`, `parseIPInfoMMDB`, `parseText`, `privateEntry`; plus merge helpers and `wantMap` builder
-- **entry.go** — `Entry` type wrapping dual `netipx.IPSetBuilder` (IPv4/IPv6 separate); handles CIDR parsing, comment stripping, prefix merging
+- **parse.go** — Four parsers: `parseMaxmindMMDB`, `parseIPInfoMMDB`, `parseText`, `privateEntry`; plus merge/remove helpers and `wantMap` builder
+- **entry.go** — `Entry` type wrapping dual `netipx.IPSetBuilder` (IPv4/IPv6 separate); handles CIDR parsing, comment stripping, prefix merging and subtraction (`Remove`)
 - **write.go** — MMDB output using `mmdbwriter`; inserts `{"country":{"iso_code":"XX"}}` records, verifies a temporary file, then replaces the output
 
 **Key design decisions:**

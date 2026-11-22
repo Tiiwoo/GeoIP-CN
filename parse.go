@@ -190,6 +190,22 @@ func mergeEntry(container map[string]*Entry, entry *Entry) error {
 	return nil
 }
 
+func removeEntries(container map[string]*Entry, entries map[string]*Entry) error {
+	for _, entry := range entries {
+		if err := removeEntry(container, entry); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeEntry(container map[string]*Entry, entry *Entry) error {
+	if existing, ok := container[entry.name]; ok {
+		return existing.Remove(entry)
+	}
+	return nil
+}
+
 func wantMap(list []string) map[string]bool {
 	if len(list) == 0 {
 		return nil

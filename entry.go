@@ -109,3 +109,17 @@ func (e *Entry) Merge(other *Entry) error {
 	e.ipv6.AddSet(v6)
 	return nil
 }
+
+func (e *Entry) Remove(other *Entry) error {
+	v4, err := other.ipv4.IPSet()
+	if err != nil {
+		return fmt.Errorf("remove %s IPv4: %w", other.name, err)
+	}
+	v6, err := other.ipv6.IPSet()
+	if err != nil {
+		return fmt.Errorf("remove %s IPv6: %w", other.name, err)
+	}
+	e.ipv4.RemoveSet(v4)
+	e.ipv6.RemoveSet(v6)
+	return nil
+}

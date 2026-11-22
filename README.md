@@ -29,12 +29,12 @@ See `config.json` for the default configuration. Supported sources:
 
 | Type | Required fields | Optional fields |
 | --- | --- | --- |
-| `maxmind_mmdb` | `url` | `wantedList` |
-| `ipinfo_mmdb` | `url` | `wantedList` |
-| `text` | `url`, `name` | `onlyIPType`: `ipv4` or `ipv6` |
-| `private` | None | None |
+| `maxmind_mmdb` | `url` | `action`, `wantedList` |
+| `ipinfo_mmdb` | `url` | `action`, `wantedList` |
+| `text` | `url`, `name` | `action`, `onlyIPType`: `ipv4` or `ipv6` |
+| `private` | None | `action` |
 
-`url` accepts an HTTP(S) URL or a local file path. MMDB sources may specify the countries to retain with `wantedList`; omitting it selects all classifications found in that source. Each requested classification must be present. A source with no matching ranges is an error, even if another source contains the same country.
+`action` defaults to `add` (merge into the classification) and also accepts `remove` (subtract ranges from an earlier classification, such as `./non_cn.txt` excluding overseas CMI HK / Cloudie / xTom ranges misclassified as `CN`). `url` accepts an HTTP(S) URL or a local file path. MMDB sources may specify the countries to retain with `wantedList`; omitting it selects all classifications found in that source. Each requested classification must be present. A source with no matching ranges is an error, even if another source contains the same country.
 
 Text sources accept CIDRs and individual IPs, with `#` or `//` comments. Address-family filtering happens after comment removal and address parsing. IPv4-mapped addresses are treated as IPv4: for example, `::ffff:1.2.3.0/120` becomes `1.2.3.0/24`. Mapped prefixes broader than `/96` are rejected.
 

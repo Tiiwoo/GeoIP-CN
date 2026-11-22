@@ -18,6 +18,7 @@ func TestLoadConfigRejectsInvalid(t *testing.T) {
 		"no URL":         `{"sources":[{"type":"maxmind_mmdb"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"no text name":   `{"sources":[{"type":"text","url":"ips.txt"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"invalid family": `{"sources":[{"type":"text","name":"cn","url":"ips.txt","onlyIPType":"ip4"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
+		"invalid action": `{"sources":[{"type":"text","name":"cn","url":"ips.txt","action":"drop"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"null":           `null`,
 		"trailing JSON":  `{"sources":[{"type":"private"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["private"]}} {}`,
 	} {

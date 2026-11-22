@@ -60,3 +60,51 @@ func TestRunCombinesAllSourceTypes(t *testing.T) {
 		t.Fatal("empty IPInfo source was hidden by the other CN sources")
 	}
 }
+
+func TestRunRemovesExcludedRanges(t *testing.T) {
+	dir := t.TempDir()
+	addPath, removePath := filepath.Join(dir, "add.txt"), filepath.Join(dir, "remove.txt")
+	if err := os.WriteFile(addPath, []byte("223.118.0.0/15\n223.120.0.0/14\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(removePath, []byte("223.118.0.0/15\n223.120.0.0/15\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{
+		Sources: []Source{
+			{Type: "text", URL: addPath, Name: "cn"},
+			{Type: "text", URL: removePath, Name: "cn", Action: "remove"},
+			{Type: "private"},
+		},
+		Output: Output{File: "Country.mmdb", Dir: dir, WantedList: []string{"cn", "private"}},
+	}
+	configPath := filepath.Join(dir, "config.json")
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(configPath); err != nil {
+		t.Fatal(err)
+	}
+	db, err := maxminddb.Open(filepath.Join(dir, "Country.mmdb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, tc := range []struct{ ip, want string }{
+		{"223.118.0.1", ""},
+		{"223.119.0.1", ""},
+		{"223.120.0.1", ""},
+		{"223.121.0.1", ""},
+		{"223.122.0.1", "CN"},
+		{"10.0.0.1", "PRIVATE"},
+	} {
+		got, found := lookupCountry(t, db, tc.ip)
+		if got != tc.want || found != (tc.want != "") {
+			t.Errorf("lookup %s = %q/%t, want %q", tc.ip, got, found, tc.want)
+		}
+	}
+}

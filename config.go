@@ -16,6 +16,7 @@ type Config struct {
 
 type Source struct {
 	Type       string   `json:"type"`
+	Action     string   `json:"action,omitempty"`
 	Name       string   `json:"name,omitempty"`
 	URL        string   `json:"url,omitempty"`
 	WantedList []string `json:"wantedList,omitempty"`
@@ -57,6 +58,11 @@ func loadConfig(path string) (*Config, error) {
 }
 
 func (s Source) validate() error {
+	switch s.Action {
+	case "", "add", "remove":
+	default:
+		return fmt.Errorf("unknown action %q", s.Action)
+	}
 	switch s.Type {
 	case "maxmind_mmdb", "ipinfo_mmdb", "text":
 		if strings.TrimSpace(s.URL) == "" {

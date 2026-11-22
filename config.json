@@ -17,6 +17,12 @@
       "onlyIPType": "ipv6"
     },
     {
+      "type": "text",
+      "name": "cn",
+      "url": "./non_cn.txt",
+      "action": "remove"
+    },
+    {
       "type": "private"
     }
   ],
