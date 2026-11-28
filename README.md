@@ -36,7 +36,7 @@ See `config.json` for the default configuration. Supported sources:
 
 `action` defaults to `add` (merge into the classification) and also accepts `remove` (subtract ranges from an earlier classification, such as `./non_cn.txt` excluding overseas CMI HK / Cloudie / xTom ranges misclassified as `CN`). `url` accepts an HTTP(S) URL or a local file path. MMDB sources may specify the countries to retain with `wantedList`; omitting it selects all classifications found in that source. Each requested classification must be present. A source with no matching ranges is an error, even if another source contains the same country.
 
-`maxmind_mmdb` reads only `country.iso_code`, and `ipinfo_mmdb` reads only `country_code`. `registered_country` and `represented_country` are ignored: for routing, the country where the IP is used matters, and the registration country would pull in CN-registered ranges operated overseas.
+`maxmind_mmdb` reads only `country.iso_code`. `ipinfo_mmdb` reads `country_code` and falls back to `country` for records that only carry the ISO code there (mostly IPv6). MaxMind's `registered_country` and `represented_country` are ignored: for routing, the country where the IP is used matters, and the registration country would pull in CN-registered ranges operated overseas.
 
 Text sources accept CIDRs and individual IPs, with `#` or `//` comments. Address-family filtering happens after comment removal and address parsing. IPv4-mapped addresses are treated as IPv4: for example, `::ffff:1.2.3.0/120` becomes `1.2.3.0/24`. Mapped prefixes broader than `/96` are rejected.
 

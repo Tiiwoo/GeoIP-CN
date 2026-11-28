@@ -49,7 +49,7 @@ func TestMMDBParsers(t *testing.T) {
 		want  []string
 	}{
 		{"maxmind", maxmindData, parseMaxmindMMDB, []string{"1.0.1.0/24", "2400:3200::/32"}},
-		{"ipinfo", ipinfoData, parseIPInfoMMDB, []string{"1.0.1.0/24", "2400:3200::/32"}},
+		{"ipinfo", ipinfoData, parseIPInfoMMDB, []string{"1.0.1.0/24", "1.0.3.0/24", "2400:3200::/32"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			entries, err := tc.parse(tc.data, wantMap([]string{" cn "}))

@@ -35,7 +35,7 @@ Single-purpose CLI tool that merges Chinese IP ranges from multiple sources into
 - Entry names are always uppercased (e.g., "CN", "PRIVATE")
 - `config.json` source types: `maxmind_mmdb`, `ipinfo_mmdb`, `text`, `private`
 - MMDB writer uses `GeoLite2-Country` database type and 24-bit records, with reserved networks included. Prefixes are merged and deduplicated before insertion, so lookups stay small and cache-friendly.
-- `maxmind_mmdb` reads only `country.iso_code`; `ipinfo_mmdb` reads only `country_code`. Do not reintroduce `registered_country`/`represented_country` fallbacks: they pull in CN-registered ranges operated overseas.
+- `maxmind_mmdb` reads only `country.iso_code`. `ipinfo_mmdb` reads `country_code` and falls back to `country` because some records (mostly IPv6) only carry the ISO code there. Do not reintroduce MaxMind `registered_country`/`represented_country` fallbacks: they pull in CN-registered ranges operated overseas.
 - `PRIVATE` covers special-use ranges including the IPv6 NAT64, discard-only, benchmarking, ORCHID, and documentation ranges. `2001::/32` (Teredo) is an MMDB alias network and cannot carry a record.
 - Empty sources, missing requested classifications, and empty requested output entries are fatal. Never publish a structurally valid database as a substitute for missing data.
 - Strip comments and parse addresses before family filtering. Mapped IPv4 prefixes must adjust the prefix length when unmapped; propagate all builder and merge errors.
