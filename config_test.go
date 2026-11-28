@@ -15,6 +15,7 @@ func TestLoadConfigRejectsInvalid(t *testing.T) {
 		"no filename":    `{"sources":[{"type":"private"}],"output":{"dir":"output","wantedList":["private"]}}`,
 		"no directory":   `{"sources":[{"type":"private"}],"output":{"file":"Country.mmdb","wantedList":["private"]}}`,
 		"unknown type":   `{"sources":[{"type":"unknown"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
+		"removed ipinfo": `{"sources":[{"type":"ipinfo_mmdb","url":"x"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"no URL":         `{"sources":[{"type":"maxmind_mmdb"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"no text name":   `{"sources":[{"type":"text","url":"ips.txt"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"invalid family": `{"sources":[{"type":"text","name":"cn","url":"ips.txt","onlyIPType":"ip4"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,

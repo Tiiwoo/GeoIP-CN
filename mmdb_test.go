@@ -36,12 +36,6 @@ func TestMMDBParsers(t *testing.T) {
 		"1.0.4.0/24":     {"represented_country": mmdbtype.Map{"iso_code": mmdbtype.String("CN")}},
 		"2400:3200::/32": {"country": mmdbtype.Map{"iso_code": mmdbtype.String("CN")}},
 	})
-	ipinfoData := makeMMDB(t, map[string]mmdbtype.Map{
-		"1.0.1.0/24":     {"country_code": mmdbtype.String(" cn "), "country": mmdbtype.String("China")},
-		"1.0.2.0/24":     {"country_code": mmdbtype.String("US")},
-		"1.0.3.0/24":     {"country": mmdbtype.String("CN")},
-		"2400:3200::/32": {"country_code": mmdbtype.String("CN")},
-	})
 	for _, tc := range []struct {
 		name  string
 		data  []byte
@@ -49,7 +43,6 @@ func TestMMDBParsers(t *testing.T) {
 		want  []string
 	}{
 		{"maxmind", maxmindData, parseMaxmindMMDB, []string{"1.0.1.0/24", "2400:3200::/32"}},
-		{"ipinfo", ipinfoData, parseIPInfoMMDB, []string{"1.0.1.0/24", "1.0.3.0/24", "2400:3200::/32"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			entries, err := tc.parse(tc.data, wantMap([]string{" cn "}))

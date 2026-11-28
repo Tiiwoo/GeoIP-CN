@@ -54,16 +54,6 @@ func runContext(ctx context.Context, configPath string) error {
 			}
 			log.Printf("parsed maxmind_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
 
-		case "ipinfo_mmdb":
-			entries, err := parseIPInfoMMDB(sourcesData[i], wantMap(src.WantedList))
-			if err != nil {
-				return fmt.Errorf("parse ipinfo_mmdb %s: %w", redactURL(src.URL), err)
-			}
-			if err := applyEntries(container, entries, src.Action); err != nil {
-				return fmt.Errorf("apply %s: %w", redactURL(src.URL), err)
-			}
-			log.Printf("parsed ipinfo_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
-
 		case "text":
 			entry, err := parseText(sourcesData[i], src.Name, src.OnlyIPType)
 			if err != nil {

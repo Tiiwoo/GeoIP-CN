@@ -6,17 +6,9 @@ GeoIP-CN merges Chinese IPv4 and IPv6 ranges from multiple sources into a MaxMin
 
 ## Build and run
 
-Requires Go 1.27 or later. Prepare the IPInfo Lite database with your IPInfo token, then run the tool from the repository directory:
+Requires Go 1.27 or later. Run the tool from the repository directory; the default configuration fetches its public sources over HTTPS:
 
 ```bash
-export IPINFO_TOKEN="your-token"
-mkdir -p data
-curl --fail --location --silent --show-error \
-  --connect-timeout 15 --max-time 120 \
-  --retry 2 --retry-max-time 360 --max-filesize 536870912 \
-  "https://ipinfo.io/data/ipinfo_lite.mmdb?token=${IPINFO_TOKEN}" \
-  --output ./data/ipinfo_lite.mmdb
-
 go build -o geoip .
 ./geoip -c config.json
 ```
@@ -30,13 +22,12 @@ See `config.json` for the default configuration. Supported sources:
 | Type | Required fields | Optional fields |
 | --- | --- | --- |
 | `maxmind_mmdb` | `url` | `action`, `wantedList` |
-| `ipinfo_mmdb` | `url` | `action`, `wantedList` |
 | `text` | `url`, `name` | `action`, `onlyIPType`: `ipv4` or `ipv6` |
 | `private` | None | `action` |
 
 `action` defaults to `add` (merge into the classification) and also accepts `remove` (subtract ranges from an earlier classification, such as `./non_cn.txt` excluding overseas CMI HK / Cloudie / xTom ranges misclassified as `CN`). `url` accepts an HTTP(S) URL or a local file path. MMDB sources may specify the countries to retain with `wantedList`; omitting it selects all classifications found in that source. Each requested classification must be present. A source with no matching ranges is an error, even if another source contains the same country.
 
-`maxmind_mmdb` reads only `country.iso_code`. `ipinfo_mmdb` reads `country_code` and falls back to `country` for records that only carry the ISO code there (mostly IPv6). MaxMind's `registered_country` and `represented_country` are ignored: for routing, the country where the IP is used matters, and the registration country would pull in CN-registered ranges operated overseas.
+`maxmind_mmdb` reads only `country.iso_code`. `registered_country` and `represented_country` are ignored: for routing, the country where the IP is used matters, and the registration country would pull in CN-registered ranges operated overseas.
 
 Text sources accept CIDRs and individual IPs, with `#` or `//` comments. Address-family filtering happens after comment removal and address parsing. IPv4-mapped addresses are treated as IPv4: for example, `::ffff:1.2.3.0/120` becomes `1.2.3.0/24`. Mapped prefixes broader than `/96` are rejected.
 
@@ -50,7 +41,7 @@ The output is written to a temporary file in the destination directory, synced, 
 
 ## Validation
 
-The regression suite uses local fixtures and HTTP test servers; no IPInfo token is needed:
+The regression suite uses local fixtures and HTTP test servers; no network or credentials are needed:
 
 ```bash
 go vet ./...
@@ -65,10 +56,10 @@ go install github.com/maxmind/mmdbverify@v1.2.0
 GEOIP_MMDB_FILE=./output/Country.mmdb go test -v -count=1 -run '^TestReleaseDatabase$' .
 ```
 
-The release check requires both IPv4 and IPv6 coverage for `CN` and `PRIVATE`, rejects unexpected classifications, and checks representative Chinese, private, and non-Chinese IPs. Set `GEOIP_BASELINE_MMDB` to the previous release database to compare prefix counts: a drop over 15% in either classification/family, or CN growth over 50%, fails the check. PRIVATE growth is allowed because that list is maintained in this repository. It is intended for the default database; custom configurations can have different coverage. These checks catch missing data and obvious classification errors, but do not prove every upstream range is geographically correct.
+The release check requires both IPv4 and IPv6 coverage for `CN` and `PRIVATE`, rejects unexpected classifications, and checks representative Chinese, private, and non-Chinese IPs. Set `GEOIP_BASELINE_MMDB` to the previous release database to compare address-space coverage: a drop over 2% in either classification/family, or CN growth over 20%, fails the check. PRIVATE growth is allowed because that list is maintained in this repository. It is intended for the default database; custom configurations can have different coverage. These checks catch missing data and obvious classification errors, but do not prove every upstream range is geographically correct.
 
 ## Automation
 
-Pull requests run formatting, build, vet, and race-enabled tests without publishing. Pushes to `main`, the Thursday schedule, and manual runs on `main` also generate and publish the database after validation. The workflow downloads the previous release database and uses it as the `GEOIP_BASELINE_MMDB` baseline. Configure the repository's `IPINFO_TOKEN` secret; publishing uses the automatically provided `GITHUB_TOKEN` with `contents: write` permission scoped to the build job.
+Pull requests run formatting, build, vet, and race-enabled tests without publishing. Pushes to `main`, the Thursday schedule, and manual runs on `main` also generate and publish the database after validation. The workflow downloads the previous release database and uses it as the `GEOIP_BASELINE_MMDB` baseline. Publishing uses the automatically provided `GITHUB_TOKEN` with `contents: write` permission scoped to the build job.
 
 Publishing jobs are serialized so they cannot concurrently overwrite the `release` branch. The workflow pins its Actions and `mmdbverify` versions.

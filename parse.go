@@ -26,32 +26,6 @@ func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, err
 	})
 }
 
-// IPInfo Lite usually stores the ISO code in country_code, but some records
-// (notably IPv6) only carry it in country. The fallback is required for
-// coverage; unlike MaxMind's registered_country, this is the same IP's own
-// country field, not a second classification.
-func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
-	return parseMMDB(data, want, func(result maxminddb.Result) (string, error) {
-		var record struct {
-			CountryCode string `maxminddb:"country_code"`
-			Country     string `maxminddb:"country"`
-		}
-		if err := result.Decode(&record); err != nil {
-			return "", err
-		}
-		return firstNonBlank(record.CountryCode, record.Country), nil
-	})
-}
-
-func firstNonBlank(values ...string) string {
-	for _, v := range values {
-		if v = strings.TrimSpace(v); v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 func parseMMDB(data []byte, want map[string]bool, extract func(maxminddb.Result) (string, error)) (map[string]*Entry, error) {
 	db, err := maxminddb.OpenBytes(data)
 	if err != nil {

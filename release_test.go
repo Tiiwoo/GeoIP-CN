@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 
@@ -9,9 +10,16 @@ import (
 )
 
 const (
-	maxDropRatio   = 0.15
-	maxGrowthRatio = 0.50
+	maxAddressDropRatio     = 0.02
+	maxCNAddressGrowthRatio = 0.20
 )
+
+type familyStats struct {
+	prefixes  int
+	addresses *big.Int
+}
+
+type databaseStats map[string][2]familyStats
 
 // CI sets GEOIP_MMDB_FILE after generation. Ordinary tests stay offline.
 func TestReleaseDatabase(t *testing.T) {
@@ -19,25 +27,28 @@ func TestReleaseDatabase(t *testing.T) {
 	if path == "" {
 		t.Skip("set GEOIP_MMDB_FILE to check a generated release database")
 	}
-	counts := countDatabase(t, path)
-	for name := range counts {
+	stats := databaseStatsFor(t, path)
+	for name := range stats {
 		if name != "CN" && name != "PRIVATE" {
 			t.Fatalf("unexpected country classification %q", name)
 		}
 	}
 	for _, name := range []string{"CN", "PRIVATE"} {
-		count := counts[name]
-		if count[0] == 0 || count[1] == 0 {
-			t.Errorf("%s is missing IPv4 or IPv6 coverage: %v", name, count)
+		for family, label := range [...]string{"IPv4", "IPv6"} {
+			if stats[name][family].prefixes == 0 {
+				t.Errorf("%s is missing %s coverage", name, label)
+			}
 		}
 	}
-	if counts["CN"][0] < 1000 || counts["CN"][1] < 500 {
-		t.Errorf("CN coverage unexpectedly low [IPv4 IPv6]: %v", counts["CN"])
+	if stats["CN"][0].prefixes < 1000 || stats["CN"][1].prefixes < 500 {
+		t.Errorf("CN coverage unexpectedly low: v4=%d v6=%d prefixes", stats["CN"][0].prefixes, stats["CN"][1].prefixes)
 	}
-	t.Logf("prefix counts [IPv4 IPv6]: %v", counts)
+	logStats(t, "current", stats)
 
 	if baselinePath := os.Getenv("GEOIP_BASELINE_MMDB"); baselinePath != "" {
-		if err := compareCounts(countDatabase(t, baselinePath), counts); err != nil {
+		baseline := databaseStatsFor(t, baselinePath)
+		logStats(t, "baseline", baseline)
+		if err := compareStats(baseline, stats); err != nil {
 			t.Error(err)
 		}
 	}
@@ -62,7 +73,7 @@ func TestReleaseDatabase(t *testing.T) {
 	}
 }
 
-func countDatabase(t *testing.T, path string) map[string][2]int {
+func databaseStatsFor(t *testing.T, path string) databaseStats {
 	t.Helper()
 	db, err := maxminddb.Open(path)
 	if err != nil {
@@ -72,7 +83,7 @@ func countDatabase(t *testing.T, path string) map[string][2]int {
 	if err := db.Verify(); err != nil {
 		t.Fatal(err)
 	}
-	counts := make(map[string][2]int)
+	stats := make(databaseStats)
 	for result := range db.Networks() {
 		var record struct {
 			Country struct {
@@ -82,64 +93,109 @@ func countDatabase(t *testing.T, path string) map[string][2]int {
 		if err := result.Decode(&record); err != nil {
 			t.Fatal(err)
 		}
-		count := counts[record.Country.ISO]
-		family := 1
-		if addr := result.Prefix().Addr(); addr.Is4() || addr.Is4In6() {
-			family = 0
+		prefix := result.Prefix()
+		family, bits, prefixLen := 1, 128, prefix.Bits()
+		if addr := prefix.Addr(); addr.Is4() || addr.Is4In6() {
+			family, bits = 0, 32
+			if addr.Is4In6() {
+				prefixLen = prefix.Bits() - 96
+			}
 		}
-		count[family]++
-		counts[record.Country.ISO] = count
+		st := stats[record.Country.ISO]
+		st[family].prefixes++
+		if st[family].addresses == nil {
+			st[family].addresses = new(big.Int)
+		}
+		st[family].addresses.Add(st[family].addresses, new(big.Int).Lsh(big.NewInt(1), uint(bits-prefixLen)))
+		stats[record.Country.ISO] = st
 	}
-	return counts
+	return stats
 }
 
-// compareCounts rejects a release whose prefix counts swing far away from the
-// previous one: a large drop means missing data, while a large CN jump usually
-// means a bad upstream range. PRIVATE is a fixed special-use list, so only its
-// drops are suspicious; intentional additions are allowed.
-func compareCounts(baseline, current map[string][2]int) error {
+func logStats(t *testing.T, label string, stats databaseStats) {
+	t.Helper()
+	for _, name := range []string{"CN", "PRIVATE"} {
+		st, ok := stats[name]
+		if !ok {
+			continue
+		}
+		t.Logf("%s %s: v4 %d prefixes / %s addrs, v6 %d prefixes / %s addrs",
+			label, name,
+			st[0].prefixes, formatAddresses(st[0].addresses),
+			st[1].prefixes, formatAddresses(st[1].addresses))
+	}
+}
+
+func formatAddresses(v *big.Int) string {
+	if v == nil || v.Sign() == 0 {
+		return "0"
+	}
+	return new(big.Float).SetInt(v).Text('g', 4)
+}
+
+// compareStats compares address-space coverage, which is what matters for
+// routing: prefix counts change whenever a source is added or replaced.
+// PRIVATE is a fixed special-use list, so only its drops are suspicious.
+func compareStats(baseline, current databaseStats) error {
 	for name, base := range baseline {
 		cur, ok := current[name]
 		if !ok {
 			return fmt.Errorf("classification %s is missing from the new database", name)
 		}
 		for family, label := range [...]string{"IPv4", "IPv6"} {
-			if base[family] == 0 {
+			b := base[family].addresses
+			if b == nil || b.Sign() == 0 {
 				continue
 			}
-			ratio := float64(cur[family]-base[family]) / float64(base[family])
-			if ratio < -maxDropRatio {
-				return fmt.Errorf("%s %s dropped %.0f%% (%d -> %d)", name, label, -ratio*100, base[family], cur[family])
+			c := cur[family].addresses
+			if c == nil {
+				c = new(big.Int)
 			}
-			if name == "CN" && ratio > maxGrowthRatio {
-				return fmt.Errorf("%s %s grew %.0f%% (%d -> %d)", name, label, ratio*100, base[family], cur[family])
+			ratio, _ := new(big.Float).Quo(new(big.Float).SetInt(c), new(big.Float).SetInt(b)).Float64()
+			change := ratio - 1
+			if change < -maxAddressDropRatio {
+				return fmt.Errorf("%s %s address space dropped %.2f%%", name, label, -change*100)
+			}
+			if name == "CN" && change > maxCNAddressGrowthRatio {
+				return fmt.Errorf("%s %s address space grew %.2f%%", name, label, change*100)
 			}
 		}
 	}
 	return nil
 }
 
-func TestCompareCounts(t *testing.T) {
-	baseline := map[string][2]int{
-		"CN":      {1000, 500},
-		"PRIVATE": {10, 5},
-	}
+func TestCompareStats(t *testing.T) {
+	baseline := statsFixture(1000, 500, 10, 5)
 	for _, tc := range []struct {
 		name    string
-		current map[string][2]int
+		current databaseStats
 		wantErr bool
 	}{
-		{"within thresholds", map[string][2]int{"CN": {900, 600}, "PRIVATE": {10, 5}}, false},
-		{"drop", map[string][2]int{"CN": {800, 500}, "PRIVATE": {10, 5}}, true},
-		{"growth", map[string][2]int{"CN": {1000, 800}, "PRIVATE": {10, 5}}, true},
-		{"private growth allowed", map[string][2]int{"CN": {1000, 500}, "PRIVATE": {10, 40}}, false},
-		{"missing classification", map[string][2]int{"CN": {1000, 500}}, true},
+		{"within thresholds", statsFixture(990, 505, 10, 5), false},
+		{"drop", statsFixture(950, 500, 10, 5), true},
+		{"private drop", statsFixture(1000, 500, 5, 5), true},
+		{"growth", statsFixture(1000, 700, 10, 5), true},
+		{"private growth allowed", statsFixture(1000, 500, 10, 50), false},
+		{"missing classification", databaseStats{"CN": baseline["CN"]}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := compareCounts(baseline, tc.current)
+			err := compareStats(baseline, tc.current)
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("compareCounts() error = %v, wantErr %v", err, tc.wantErr)
+				t.Fatalf("compareStats() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func statsFixture(cn4, cn6, private4, private6 int64) databaseStats {
+	return databaseStats{
+		"CN": {
+			{prefixes: 1, addresses: big.NewInt(cn4)},
+			{prefixes: 1, addresses: big.NewInt(cn6)},
+		},
+		"PRIVATE": {
+			{prefixes: 1, addresses: big.NewInt(private4)},
+			{prefixes: 1, addresses: big.NewInt(private6)},
+		},
 	}
 }

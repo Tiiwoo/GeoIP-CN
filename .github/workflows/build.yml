@@ -59,17 +59,8 @@ jobs:
           echo "RELEASE_NAME=$tag" >> "$GITHUB_ENV"
         shell: bash
 
-      - name: Prepare data and output directories
-        env:
-          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
-        run: |
-          : "${IPINFO_TOKEN:?IPINFO_TOKEN is required}"
-          mkdir -p data output
-          curl --fail --location --silent --show-error \
-            --connect-timeout 15 --max-time 120 \
-            --retry 2 --retry-max-time 360 --max-filesize 536870912 \
-            "https://ipinfo.io/data/ipinfo_lite.mmdb?token=${IPINFO_TOKEN}" \
-            --output ./data/ipinfo_lite.mmdb
+      - name: Prepare output directory
+        run: mkdir -p output
 
       - name: Fetch previous release database
         run: |

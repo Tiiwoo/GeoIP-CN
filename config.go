@@ -64,7 +64,7 @@ func (s Source) validate() error {
 		return fmt.Errorf("unknown action %q", s.Action)
 	}
 	switch s.Type {
-	case "maxmind_mmdb", "ipinfo_mmdb", "text":
+	case "maxmind_mmdb", "text":
 		if strings.TrimSpace(s.URL) == "" {
 			return fmt.Errorf("url is required for %s", s.Type)
 		}
@@ -80,8 +80,8 @@ func (s Source) validate() error {
 			return fmt.Errorf("onlyIPType must be ipv4 or ipv6 and is only supported for text sources")
 		}
 	}
-	if len(s.WantedList) > 0 && s.Type != "maxmind_mmdb" && s.Type != "ipinfo_mmdb" {
-		return fmt.Errorf("wantedList is only supported for MMDB sources")
+	if len(s.WantedList) > 0 && s.Type != "maxmind_mmdb" {
+		return fmt.Errorf("wantedList is only supported for maxmind_mmdb sources")
 	}
 	return validateNames(s.WantedList)
 }

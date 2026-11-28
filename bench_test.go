@@ -33,22 +33,3 @@ func BenchmarkParseMaxmindMMDB(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkParseIPInfoMMDB(b *testing.B) {
-	data := makeMMDB(b, benchmarkRecords(10000, func(i int) mmdbtype.Map {
-		code := "CN"
-		if i%2 == 1 {
-			code = "US"
-		}
-		return mmdbtype.Map{"country_code": mmdbtype.String(code)}
-	}))
-	want := wantMap([]string{"cn"})
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		entries, err := parseIPInfoMMDB(data, want)
-		if err != nil || len(entries) != 1 {
-			b.Fatalf("parse failed: entries=%d err=%v", len(entries), err)
-		}
-	}
-}

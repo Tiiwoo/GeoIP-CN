@@ -6,9 +6,10 @@
       "wantedList": ["cn"]
     },
     {
-      "type": "ipinfo_mmdb",
-      "url": "./data/ipinfo_lite.mmdb",
-      "wantedList": ["cn"]
+      "type": "text",
+      "name": "cn",
+      "url": "https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china.txt",
+      "onlyIPType": "ipv4"
     },
     {
       "type": "text",
