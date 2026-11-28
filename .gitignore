@@ -68,10 +68,6 @@ $RECYCLE.BIN/
 
 .claude/
 tmp/
-data/
-geolite2/
-db-ip/
-ipinfo/
 output/
 geoip
 *.dat

@@ -4,6 +4,14 @@ GeoIP-CN merges Chinese IPv4 and IPv6 ranges from multiple sources into a MaxMin
 
 `PRIVATE` is a routing label for the special-use ranges listed in `parse.go`, including private, loopback, link-local, shared, documentation, and multicast ranges, plus the IPv6 special-use ranges (NAT64, discard-only, benchmarking, ORCHID, documentation, and related anycast). It is not an ISO country code. Consumers must support this label if they use it in routing rules. `2001::/32` (Teredo) is an MMDB alias network and cannot carry a record.
 
+## Sources
+
+- [chnroutes2](https://github.com/misakaio/chnroutes2) — CN routes, CC-BY-SA-4.0
+- [china-operator-ip](https://github.com/gaoyifan/china-operator-ip) — `china.txt` (IPv4) and `china6.txt` (IPv6), MIT
+- `non_cn.txt` — manually maintained exclusions
+
+The merged database is distributed under CC-BY-SA-4.0; keep the attribution when republishing.
+
 ## Build and run
 
 Requires Go 1.27 or later. Run the tool from the repository directory; the default configuration fetches its public sources over HTTPS:
