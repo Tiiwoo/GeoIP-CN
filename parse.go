@@ -9,40 +9,33 @@ import (
 	maxminddb "github.com/oschwald/maxminddb-golang/v2"
 )
 
+// Only country.iso_code is used for MaxMind-style sources: for CN routing what
+// matters is where the IP is used. Falling back to registered_country would
+// pull in CN-registered ranges that are operated from overseas.
 func parseMaxmindMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
 	return parseMMDB(data, want, func(result maxminddb.Result) (string, error) {
 		var record struct {
 			Country struct {
 				IsoCode string `maxminddb:"iso_code"`
 			} `maxminddb:"country"`
-			RegisteredCountry struct {
-				IsoCode string `maxminddb:"iso_code"`
-			} `maxminddb:"registered_country"`
-			RepresentedCountry struct {
-				IsoCode string `maxminddb:"iso_code"`
-			} `maxminddb:"represented_country"`
 		}
 		if err := result.Decode(&record); err != nil {
 			return "", err
 		}
-		return firstNonBlank(
-			record.Country.IsoCode,
-			record.RegisteredCountry.IsoCode,
-			record.RepresentedCountry.IsoCode,
-		), nil
+		return strings.TrimSpace(record.Country.IsoCode), nil
 	})
 }
 
+// IPInfo Lite stores the ISO code in country_code; decode only that field.
 func parseIPInfoMMDB(data []byte, want map[string]bool) (map[string]*Entry, error) {
 	return parseMMDB(data, want, func(result maxminddb.Result) (string, error) {
 		var record struct {
-			Country     string `maxminddb:"country"`
 			CountryCode string `maxminddb:"country_code"`
 		}
 		if err := result.Decode(&record); err != nil {
 			return "", err
 		}
-		return firstNonBlank(record.CountryCode, record.Country), nil
+		return strings.TrimSpace(record.CountryCode), nil
 	})
 }
 
@@ -53,7 +46,7 @@ func parseMMDB(data []byte, want map[string]bool, extract func(maxminddb.Result)
 	}
 	defer db.Close()
 
-	entries := make(map[string]*Entry)
+	entries := make(map[string]*Entry, len(want))
 	for result := range db.Networks() {
 		name, err := extract(result)
 		if err != nil {
@@ -74,15 +67,6 @@ func parseMMDB(data []byte, want map[string]bool, extract func(maxminddb.Result)
 		}
 	}
 	return entries, validateParsedEntries(entries, want)
-}
-
-func firstNonBlank(values ...string) string {
-	for _, v := range values {
-		if v = strings.TrimSpace(v); v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func parseText(data []byte, name string, onlyIPType string) (*Entry, error) {
@@ -157,6 +141,20 @@ var privateCIDRs = []string{
 	"255.255.255.255/32",
 	"::/128",
 	"::1/128",
+	"64:ff9b::/96",
+	"64:ff9b:1::/48",
+	"100::/64",
+	// 2001::/32 (Teredo) is an IPv4 alias network in the MMDB format and cannot
+	// carry a PRIVATE record.
+	"2001:1::1/128",
+	"2001:1::2/128",
+	"2001:2::/48",
+	"2001:3::/32",
+	"2001:4:112::/48",
+	"2001:10::/28",
+	"2001:20::/28",
+	"2001:30::/28",
+	"2001:db8::/32",
 	"fc00::/7",
 	"ff00::/8",
 	"fe80::/10",
@@ -200,10 +198,11 @@ func removeEntries(container map[string]*Entry, entries map[string]*Entry) error
 }
 
 func removeEntry(container map[string]*Entry, entry *Entry) error {
-	if existing, ok := container[entry.name]; ok {
-		return existing.Remove(entry)
+	existing, ok := container[entry.name]
+	if !ok {
+		return fmt.Errorf("remove target %s not found", entry.name)
 	}
-	return nil
+	return existing.Remove(entry)
 }
 
 func wantMap(list []string) map[string]bool {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -17,12 +18,27 @@ const (
 	maxSourceBytes = 512 << 20
 	fetchAttempts  = 3
 	fetchTimeout   = 2 * time.Minute
+	userAgent      = "GeoIP-CN/1.0 (+https://github.com/Tiiwoo/GeoIP-CN)"
 )
 
 var (
 	sourceHTTPClient  = &http.Client{Timeout: fetchTimeout}
 	errSourceTooLarge = errors.New("source size limit exceeded")
 )
+
+// redactURL hides token query parameters before a URL reaches logs or errors.
+func redactURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	q := u.Query()
+	if q.Has("token") {
+		q.Set("token", "[REDACTED]")
+		u.RawQuery = q.Encode()
+	}
+	return u.String()
+}
 
 func fetchAll(ctx context.Context, sources []Source) ([][]byte, error) {
 	results := make([][]byte, len(sources))
@@ -36,7 +52,7 @@ func fetchAll(ctx context.Context, sources []Source) ([][]byte, error) {
 		g.Go(func() error {
 			data, err := fetchOne(ctx, src.URL)
 			if err != nil {
-				return fmt.Errorf("fetch %s: %w", src.URL, err)
+				return fmt.Errorf("fetch %s: %w", redactURL(src.URL), err)
 			}
 			results[i] = data
 			return nil
@@ -88,6 +104,7 @@ func fetchHTTP(ctx context.Context, client *http.Client, url string, maxBytes in
 		if err != nil {
 			return nil, err
 		}
+		req.Header.Set("User-Agent", userAgent)
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
@@ -95,7 +112,7 @@ func fetchHTTP(ctx context.Context, client *http.Client, url string, maxBytes in
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			lastErr = fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
+			lastErr = fmt.Errorf("HTTP %d for %s", resp.StatusCode, redactURL(url))
 			if resp.StatusCode != http.StatusRequestTimeout && resp.StatusCode != http.StatusTooManyRequests &&
 				(resp.StatusCode < 500 || resp.StatusCode > 599) {
 				return nil, lastErr

@@ -47,30 +47,30 @@ func runContext(ctx context.Context, configPath string) error {
 		case "maxmind_mmdb":
 			entries, err := parseMaxmindMMDB(sourcesData[i], wantMap(src.WantedList))
 			if err != nil {
-				return fmt.Errorf("parse maxmind_mmdb %s: %w", src.URL, err)
+				return fmt.Errorf("parse maxmind_mmdb %s: %w", redactURL(src.URL), err)
 			}
 			if err := applyEntries(container, entries, src.Action); err != nil {
-				return fmt.Errorf("apply %s: %w", src.URL, err)
+				return fmt.Errorf("apply %s: %w", redactURL(src.URL), err)
 			}
 			log.Printf("parsed maxmind_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
 
 		case "ipinfo_mmdb":
 			entries, err := parseIPInfoMMDB(sourcesData[i], wantMap(src.WantedList))
 			if err != nil {
-				return fmt.Errorf("parse ipinfo_mmdb %s: %w", src.URL, err)
+				return fmt.Errorf("parse ipinfo_mmdb %s: %w", redactURL(src.URL), err)
 			}
 			if err := applyEntries(container, entries, src.Action); err != nil {
-				return fmt.Errorf("apply %s: %w", src.URL, err)
+				return fmt.Errorf("apply %s: %w", redactURL(src.URL), err)
 			}
 			log.Printf("parsed ipinfo_mmdb: %d entries%s", len(entries), actionSuffix(src.Action))
 
 		case "text":
 			entry, err := parseText(sourcesData[i], src.Name, src.OnlyIPType)
 			if err != nil {
-				return fmt.Errorf("parse text %s: %w", src.URL, err)
+				return fmt.Errorf("parse text %s: %w", redactURL(src.URL), err)
 			}
 			if err := applyEntry(container, entry, src.Action); err != nil {
-				return fmt.Errorf("apply %s: %w", src.URL, err)
+				return fmt.Errorf("apply %s: %w", redactURL(src.URL), err)
 			}
 			log.Printf("parsed text: %s%s", strings.ToUpper(src.Name), actionSuffix(src.Action))
 

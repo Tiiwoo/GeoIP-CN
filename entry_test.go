@@ -79,6 +79,14 @@ func TestEntryRejectsInvalidPrefix(t *testing.T) {
 	assertPrefixes(t, entry)
 }
 
+func TestEntryRejectsEmptyPrefix(t *testing.T) {
+	entry := NewEntry("cn")
+	if err := entry.AddPrefix("   "); err == nil {
+		t.Fatal("empty prefix was silently accepted")
+	}
+	assertPrefixes(t, entry)
+}
+
 func TestEntryMergePropagatesErrors(t *testing.T) {
 	for _, family := range []string{"ipv4", "ipv6"} {
 		t.Run(family, func(t *testing.T) {

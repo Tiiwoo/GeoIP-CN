@@ -20,8 +20,11 @@ func NewEntry(name string) *Entry {
 
 func (e *Entry) AddPrefix(cidr string) error {
 	p, err := parsePrefix(cidr)
-	if err != nil || !p.IsValid() {
+	if err != nil {
 		return err
+	}
+	if !p.IsValid() {
+		return fmt.Errorf("empty prefix %q", cidr)
 	}
 	return e.addPrefix(p)
 }

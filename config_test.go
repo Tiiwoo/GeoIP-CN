@@ -21,6 +21,8 @@ func TestLoadConfigRejectsInvalid(t *testing.T) {
 		"invalid action": `{"sources":[{"type":"text","name":"cn","url":"ips.txt","action":"drop"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["cn"]}}`,
 		"null":           `null`,
 		"trailing JSON":  `{"sources":[{"type":"private"}],"output":{"file":"Country.mmdb","dir":"output","wantedList":["private"]}} {}`,
+		"path traversal": `{"sources":[{"type":"private"}],"output":{"file":"../Country.mmdb","dir":"output","wantedList":["private"]}}`,
+		"nested file":    `{"sources":[{"type":"private"}],"output":{"file":"sub/Country.mmdb","dir":"output","wantedList":["private"]}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.json")

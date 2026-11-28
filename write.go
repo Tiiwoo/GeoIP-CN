@@ -19,9 +19,11 @@ func writeMMDB(entries map[string]*Entry, output Output) error {
 		return err
 	}
 	writer, err := mmdbwriter.New(mmdbwriter.Options{
-		DatabaseType:            "GeoLite2-Country",
-		Description:             map[string]string{"en": "GeoIP-CN Country database"},
-		RecordSize:              28,
+		DatabaseType: "GeoLite2-Country",
+		Description:  map[string]string{"en": "GeoIP-CN Country database"},
+		// GeoLite2-Country uses 24-bit records: a smaller tree with better cache
+		// behavior than 28-bit records.
+		RecordSize:              24,
 		IncludeReservedNetworks: true,
 	})
 	if err != nil {

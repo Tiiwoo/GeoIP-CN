@@ -126,6 +126,22 @@ func TestFetchHTTPDiscardsTruncatedAttempt(t *testing.T) {
 	}
 }
 
+func TestFetchHTTPSetsUserAgentAndRedactsToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.UserAgent(); got != userAgent {
+			t.Errorf("User-Agent = %q, want %q", got, userAgent)
+		}
+		fmt.Fprint(w, "ok")
+	}))
+	defer server.Close()
+	if _, err := fetchHTTP(t.Context(), server.Client(), server.URL+"?token=secret", 1024); err != nil {
+		t.Fatal(err)
+	}
+	if got := redactURL(server.URL + "?token=secret"); strings.Contains(got, "secret") || !strings.Contains(got, "REDACTED") {
+		t.Fatalf("redactURL() = %q", got)
+	}
+}
+
 func TestFetchAllAndLocalSizeLimit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source.txt")
 	if err := os.WriteFile(path, []byte("local"), 0600); err != nil {

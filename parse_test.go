@@ -37,3 +37,13 @@ func TestParseTextRejectsEmptyOrInvalidSource(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveRequiresExistingTarget(t *testing.T) {
+	entry, err := parseText([]byte("1.2.3.0/24"), "cn", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := removeEntry(map[string]*Entry{}, entry); err == nil {
+		t.Fatal("remove without an existing target was accepted")
+	}
+}

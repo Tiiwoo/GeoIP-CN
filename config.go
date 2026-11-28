@@ -87,8 +87,13 @@ func (s Source) validate() error {
 }
 
 func (o Output) validate() error {
-	if strings.TrimSpace(o.File) == "" || strings.TrimSpace(o.Dir) == "" {
+	file := strings.TrimSpace(o.File)
+	dir := strings.TrimSpace(o.Dir)
+	if file == "" || dir == "" {
 		return fmt.Errorf("file and dir are required")
+	}
+	if file == "." || file == ".." || strings.ContainsAny(file, `/\`) {
+		return fmt.Errorf("file must be a plain filename")
 	}
 	if len(o.WantedList) == 0 {
 		return fmt.Errorf("wantedList must not be empty")

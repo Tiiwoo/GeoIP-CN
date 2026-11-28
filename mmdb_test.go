@@ -10,20 +10,20 @@ import (
 	"go4.org/netipx"
 )
 
-func makeMMDB(t *testing.T, records map[string]mmdbtype.Map) []byte {
-	t.Helper()
+func makeMMDB(tb testing.TB, records map[string]mmdbtype.Map) []byte {
+	tb.Helper()
 	tree, err := mmdbwriter.New(mmdbwriter.Options{DatabaseType: "test", Description: map[string]string{"en": "test database"}, IncludeReservedNetworks: true})
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	for prefix, record := range records {
 		if err := tree.Insert(netipx.PrefixIPNet(netip.MustParsePrefix(prefix)), record); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 	var data bytes.Buffer
 	if _, err := tree.WriteTo(&data); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return data.Bytes()
 }
@@ -48,8 +48,8 @@ func TestMMDBParsers(t *testing.T) {
 		parse func([]byte, map[string]bool) (map[string]*Entry, error)
 		want  []string
 	}{
-		{"maxmind", maxmindData, parseMaxmindMMDB, []string{"1.0.1.0/24", "1.0.3.0/24", "1.0.4.0/24", "2400:3200::/32"}},
-		{"ipinfo", ipinfoData, parseIPInfoMMDB, []string{"1.0.1.0/24", "1.0.3.0/24", "2400:3200::/32"}},
+		{"maxmind", maxmindData, parseMaxmindMMDB, []string{"1.0.1.0/24", "2400:3200::/32"}},
+		{"ipinfo", ipinfoData, parseIPInfoMMDB, []string{"1.0.1.0/24", "2400:3200::/32"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			entries, err := tc.parse(tc.data, wantMap([]string{" cn "}))
