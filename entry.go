@@ -26,7 +26,8 @@ func (e *Entry) AddPrefix(cidr string) error {
 	if !p.IsValid() {
 		return fmt.Errorf("empty prefix %q", cidr)
 	}
-	return e.addPrefix(p)
+	e.addNormalizedPrefix(p)
+	return nil
 }
 
 // parsePrefix strips comments and returns a zero prefix for a blank line.
@@ -75,12 +76,18 @@ func (e *Entry) addPrefix(p netip.Prefix) error {
 	if err != nil {
 		return err
 	}
+	e.addNormalizedPrefix(p)
+	return nil
+}
+
+// addNormalizedPrefix assumes p is valid and already normalized by parsePrefix
+// or normalizePrefix.
+func (e *Entry) addNormalizedPrefix(p netip.Prefix) {
 	if p.Addr().Is4() {
 		e.ipv4.AddPrefix(p)
 	} else {
 		e.ipv6.AddPrefix(p)
 	}
-	return nil
 }
 
 func (e *Entry) Prefixes() ([]netip.Prefix, error) {

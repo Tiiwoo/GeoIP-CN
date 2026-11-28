@@ -83,9 +83,7 @@ func parseText(data []byte, name string, onlyIPType string) (*Entry, error) {
 			continue
 		}
 
-		if err := entry.addPrefix(prefix); err != nil {
-			return nil, err
-		}
+		entry.addNormalizedPrefix(prefix)
 		count++
 	}
 	if err := scanner.Err(); err != nil {

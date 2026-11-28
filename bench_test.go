@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/maxmind/mmdbwriter/mmdbtype"
@@ -30,6 +31,22 @@ func BenchmarkParseMaxmindMMDB(b *testing.B) {
 		entries, err := parseMaxmindMMDB(data, want)
 		if err != nil || len(entries) != 1 {
 			b.Fatalf("parse failed: entries=%d err=%v", len(entries), err)
+		}
+	}
+}
+
+func BenchmarkParseText(b *testing.B) {
+	var buf strings.Builder
+	for i := 0; i < 10000; i++ {
+		fmt.Fprintf(&buf, "1.%d.%d.0/24\n", i/256, i%256)
+	}
+	data := []byte(buf.String())
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		entry, err := parseText(data, "cn", "ipv4")
+		if err != nil || entry == nil {
+			b.Fatalf("parse failed: %v", err)
 		}
 	}
 }
